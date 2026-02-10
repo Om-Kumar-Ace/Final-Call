@@ -18,6 +18,8 @@ class Team(models.Model):
     budget = models.IntegerField(default=10000)
     spent = models.IntegerField(default=0)
     players_count = models.IntegerField(default=0)
+    captain_name = models.CharField(max_length=100, blank=True, default="")
+    vice_captain_name = models.CharField(max_length=100, blank=True, default="")
     def __str__(self): return self.name
 
 class Player(models.Model):
@@ -33,6 +35,7 @@ class Player(models.Model):
     is_unsold = models.BooleanField(default=False)
     sold_to = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True)
     sold_price = models.IntegerField(default=0)
+    priority_score = models.IntegerField(default=0)
     def __str__(self): return self.name
 
 class AuctionState(models.Model):
@@ -46,3 +49,4 @@ class TransactionLog(models.Model):
     team_name = models.CharField(max_length=100)
     amount = models.IntegerField()
     timestamp = models.DateTimeField(auto_now_add=True)
+

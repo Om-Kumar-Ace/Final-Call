@@ -149,7 +149,10 @@ def get_state(request):
     if not event: return JsonResponse({'error': 'No active auction'})
 
     state, _ = AuctionState.objects.get_or_create(auction=event)
-    teams = list(event.teams.values('id', 'name', 'budget', 'spent', 'players_count').order_by('id'))
+    teams = list(event.teams.values(
+    'id', 'name', 'budget', 'spent', 'players_count', 
+    'captain_name', 'vice_captain_name'
+).order_by('id'))
     
     curr_p = None
     if state.current_player:
@@ -163,7 +166,10 @@ def get_state(request):
     history = list(TransactionLog.objects.filter(auction=event).values(
         'player_name', 'team_name', 'amount', 'timestamp'
     ).order_by('-id'))
-    
+    all_unsold_players = list(event.players.filter(
+        is_sold=False, 
+        is_unsold=False
+    ).values('id', 'name', 'category', 'priority_score').order_by('name'))
     stats = {
         'remaining': event.players.filter(is_sold=False, is_unsold=False).count(),
         'unsold': event.players.filter(is_unsold=True).count(),
@@ -177,6 +183,7 @@ def get_state(request):
         'teams': teams,
         'history': history,
         'stats': stats,
+        'all_unsold_players': all_unsold_players,
         'host_url': request.get_host()
     })
 
@@ -188,17 +195,27 @@ def api_action(request):
     
     event = AuctionEvent.objects.filter(is_active=True).first()
     if not event: return JsonResponse({'status': 'error'})
-
+    
     with transaction.atomic():
         state = AuctionState.objects.select_for_update().get(auction=event)
 
         if action == 'SPIN':
             candidates = event.players.filter(is_sold=False, is_unsold=False)
-            if candidates.exists():
+            priority_candidates = candidates.filter(priority_score__gt=0).order_by('-priority_score')
+            
+            if priority_candidates.exists():
+                winner = priority_candidates.first()
+                winner.priority_score = 0 
+                winner.save()
+            elif candidates.exists():
                 winner = random.choice(candidates)
-                state.current_player = winner
-                state.current_bid = winner.base_price
-                state.save()
+            else:
+                return JsonResponse({'status': 'empty'})
+
+            state.current_player = winner
+            state.current_bid = winner.base_price
+            state.save()
+
 
         elif action == 'BID':
             state.current_bid = int(data.get('amount', 0))
@@ -339,3 +356,32 @@ def verify_pin(request):
         else:
             return JsonResponse({'success': False, 'msg': 'Incorrect PIN'})
     return JsonResponse({'success': False})
+@csrf_exempt
+def toggle_priority(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+        player_id = data.get('player_id')
+        player = get_object_or_404(Player, id=player_id)
+        
+        # If score is 0, make it 1 (Boosted). If 1, make it 0 (Normal).
+        player.priority_score = 1 if player.priority_score == 0 else 0
+        player.save()
+        
+        return JsonResponse({
+            'success': True, 
+            'is_prioritized': player.priority_score > 0,
+            'player_name': player.name
+        })
+    return JsonResponse({'success': False}, status=400)
+
+
+@csrf_exempt
+def assign_team_roles(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+        team = get_object_or_404(Team, id=data.get('team_id'))
+        team.captain_name = data.get('captain', "")
+        team.vice_captain_name = data.get('vice_captain', "")
+        team.save()
+        return JsonResponse({'success': True})
+    return JsonResponse({'success': False}, status=400)
