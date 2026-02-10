@@ -6,6 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from django.db.models import F 
 from .models import Team, Player, AuctionState, TransactionLog, AuctionEvent
+from django.contrib import messages
 
 def normalize_columns(df):
     # 1. Clean existing columns (lowercase, strip spaces)
@@ -16,9 +17,10 @@ def normalize_columns(df):
     mapping = {
         'name': ['player', 'player name', 'fullname', 'name', 'full name'],
         'email': ['email', 'email address', 'contact', 'mail', 'id'],
-        'category': ['category', 'cat', 'group', 'tier', 'type'],
-        'position': ['position', 'role', 'speciality', 'playing role'],
+        'category': ['category', 'cat', 'group', 'tier', 'type',],
+        'position': ['position', 'role', 'speciality', 'playing role','playing position'],
         'department': ['department', 'dept', 'branch', 'section'],
+        'year':['year','y'],
         'base_price': ['baseprice', 'base price', 'cost', 'starting bid', 'price', 'points', 'base'],
         'image': ['image', 'photo', 'pic', 'url', 'image link']
     }
@@ -51,7 +53,7 @@ def setup_view(request):
                     
                     # 2. Create New Event
                     event_name = request.POST.get('event_name', 'New Auction')
-                    event_pin = request.POST.get('admin_pin', '1234')
+                    event_pin = request.POST.get('admin_pin', '1212')
                     event = AuctionEvent.objects.create(name=event_name, is_active=True)
 
                     # 3. Create Teams
@@ -105,6 +107,7 @@ def setup_view(request):
                                     name=str(row['name']).strip(),
                                     email=row.get('email', None),
                                     department=row.get('department', ''),
+                                    year=row.get('year',''),
                                     category=row.get('category', 'General'),
                                     position=row.get('position', 'Player'),
                                     base_price=row['base_price'], # Now strictly an integer

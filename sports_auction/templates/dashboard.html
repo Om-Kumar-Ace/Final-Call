@@ -573,20 +573,28 @@
                                         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] bg-gradient-to-t from-transparent via-cyan-500/10 to-transparent rays -z-10 opacity-60"></div>
 
                                         <div className="relative inline-block mb-10">
-                                            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full blur-2xl opacity-50"></div>
-                                            <img src={getImg(tempWinner)} className="w-64 h-64 md:w-80 md:h-80 rounded-full border-4 border-white shadow-2xl relative z-10 bg-slate-900 object-cover" />
-                                            <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 bg-yellow-400 text-black px-8 py-2 font-black font-hero text-2xl md:text-3xl uppercase -skew-x-12 border-2 border-white shadow-[0_10px_20px_rgba(0,0,0,0.5)] z-20 whitespace-nowrap">
-                                                {tempWinner.category}
+                                            <div className="absolute  inset-0 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full blur-2xl opacity-40"></div>
+                                            <img src={getImg(tempWinner)} className="w-64 h-64 md:w-80 md:h-80 rounded-full border-4 border-white shadow-2xl  relative z-10 bg-slate-900 object-cover animate-fadeIn" />
+                                            <div className="flex justify-center gap-4 mt-6 animate-slideUp">
+                                                <span className="bg-yellow-400 text-black px-6 py-2 font-black font-hero text-xl md:text-2xl uppercase border-2 border-white shadow-[0_6px_12px_rgba(0,0,0,0.4)] -skew-x-12">
+                                                    {tempWinner.category}
+                                                </span>
+                                                <br />
+                                                <span className="bg-yellow-400 text-black px-6 py-2 font-black font-hero text-xl md:text-2xl uppercase border-2 border-white shadow-[0_6px_12px_rgba(0,0,0,0.4)] -skew-x-12">
+                                                    {tempWinner.department}
+                                                </span>
                                             </div>
                                         </div>
 
                                         <h1 className="font-hero text-7xl md:text-9xl text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-400 drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)] leading-[0.8] mb-4 uppercase">
                                             {tempWinner.name}
                                         </h1>
-
-                                        <div className="flex flex-wrap justify-center gap-4 mb-10">
-                                            <span className="font-tech text-xl md:text-2xl text-cyan-400 tracking-[0.3em] uppercase border border-cyan-500/30 px-4 py-1 rounded bg-cyan-950/30">
+                                        <div className="flex flex-wrap justify-center gap-4 mb-10 animate-slideUp">
+                                            <span className="font-tech text-lg md:text-xl text-cyan-400 tracking-[0.25em] uppercase border border-cyan-500/30 px-4 py-1 rounded bg-cyan-950/30">
                                                 {tempWinner.position}
+                                            </span>
+                                            <span className="font-tech text-lg md:text-xl text-cyan-400 tracking-[0.25em] uppercase border border-cyan-500/30 px-4 py-1 rounded bg-cyan-950/30">
+                                                {tempWinner.year}
                                             </span>
                                         </div>
 
@@ -645,7 +653,7 @@
                                                     onClick={() => setShowCheat(true)}
                                                     className="px-5 py-2 text-xs font-black rounded-xl border border-fuchsia-500 text-fuchsia-400 hover:bg-fuchsia-500/10 uppercase tracking-widest transition hover:scale-105"
                                                 >
-                                                    Remaining Player 
+                                                    Remaining Player
                                                 </button>
                                             )}
 
@@ -768,6 +776,12 @@
                                                 </span>
                                                 <span className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-[10px] font-bold uppercase text-cyan-500">
                                                     {current_player.category}
+                                                </span>
+                                                <span className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-[10px] font-bold uppercase text-cyan-500">
+                                                    {current_player.department}
+                                                </span>
+                                                <span className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-[10px] font-bold uppercase text-cyan-500">
+                                                    {current_player.year}
                                                 </span>
                                             </div>
 
@@ -1008,8 +1022,8 @@
                                             value={search}
                                             onChange={(e) => setSearch(e.target.value)}
                                             className={`w-full rounded-2xl px-6 py-4 text-sm font-black outline-none ${isDark
-                                                    ? "bg-black/40 border border-white/10 text-white focus:border-fuchsia-500"
-                                                    : "bg-white border border-slate-200 text-slate-900 focus:border-fuchsia-500"
+                                                ? "bg-black/40 border border-white/10 text-white focus:border-fuchsia-500"
+                                                : "bg-white border border-slate-200 text-slate-900 focus:border-fuchsia-500"
                                                 }`}
                                         />
                                     </div>
@@ -1021,10 +1035,10 @@
                                                 <div
                                                     key={p.id}
                                                     className={`flex items-center justify-between gap-4 p-4 rounded-[1.8rem] border transition ${p.priority_score > 0
-                                                            ? "border-fuchsia-500 bg-fuchsia-500/10 shadow-lg"
-                                                            : isDark
-                                                                ? "border-white/5 bg-white/[0.02]"
-                                                                : "border-slate-200 bg-slate-50"
+                                                        ? "border-fuchsia-500 bg-fuchsia-500/10 shadow-lg"
+                                                        : isDark
+                                                            ? "border-white/5 bg-white/[0.02]"
+                                                            : "border-slate-200 bg-slate-50"
                                                         }`}
                                                 >
                                                     <div>

@@ -29,6 +29,7 @@ class Player(models.Model):
     department = models.CharField(max_length=100, blank=True, default="")
     category = models.CharField(max_length=50, default="General")
     position = models.CharField(max_length=50, default="Player")
+    year = models.CharField(max_length=10, blank=True, null=True)
     base_price = models.IntegerField(default=200)
     image_url = models.TextField(blank=True, null=True)
     is_sold = models.BooleanField(default=False)
