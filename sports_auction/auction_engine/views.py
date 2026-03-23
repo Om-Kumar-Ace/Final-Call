@@ -1,12 +1,14 @@
 import pandas as pd
-import json, random
+import json, random ,requests
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from django.db.models import F 
 from .models import Team, Player, AuctionState, TransactionLog, AuctionEvent
 from django.contrib import messages
+from django.utils import timezone
+
 
 def normalize_columns(df):
     # 1. Clean existing columns (lowercase, strip spaces)
@@ -16,11 +18,11 @@ def normalize_columns(df):
     # 2. Mapping Dictionary
     mapping = {
         'name': ['player', 'player name', 'fullname', 'name', 'full name'],
-        'email': ['email', 'email address', 'contact', 'mail', 'id'],
-        'category': ['category', 'cat', 'group', 'tier', 'type',],
-        'position': ['position', 'role', 'speciality', 'playing role','playing position'],
+        'email': ['email', 'email address', 'contact', 'mail', 'id','Mobile No.','Email address'],
+        'category': ['category', 'cat', 'group', 'tier', 'type','role','ROLE'],
+        'position': ['position', 'speciality', 'playing role','playing position'],
         'department': ['department', 'dept', 'branch', 'section'],
-        'year':['year','y'],
+        'year':['year','y','Year','YEAR'],
         'base_price': ['baseprice', 'base price', 'cost', 'starting bid', 'price', 'points', 'base'],
         'image': ['image', 'photo', 'pic', 'url', 'image link']
     }
@@ -163,7 +165,7 @@ def get_state(request):
         curr_p = {
             'id': p.id, 'name': p.name, 'department': p.department,
             'category': p.category, 'position': p.position, 
-            'image': p.image_url, 'base_price': p.base_price
+            'image': p.image_url, 'base_price': p.base_price, 'year': p.year,
         }
 
     history = list(TransactionLog.objects.filter(auction=event).values(
@@ -178,7 +180,11 @@ def get_state(request):
         'unsold': event.players.filter(is_unsold=True).count(),
         'sold': event.players.filter(is_sold=True).count(),
     }
-
+    categories = list(
+    Player.objects
+    .values_list("category", flat=True)
+    .distinct()
+)
     return JsonResponse({
         'auction_name': event.name,
         'current_player': curr_p,
@@ -187,38 +193,78 @@ def get_state(request):
         'history': history,
         'stats': stats,
         'all_unsold_players': all_unsold_players,
-        'host_url': request.get_host()
+        'host_url': request.get_host(),
+        'categories': categories
     })
 
 @csrf_exempt
 def api_action(request):
-    if request.method != "POST": return JsonResponse({})
-    data = json.loads(request.body)
-    action = data.get('action')
-    
+    if request.method != "POST":
+        return JsonResponse({"status": "invalid_method"})
+
+    try:
+        data = json.loads(request.body)
+    except:
+        return JsonResponse({"status": "invalid_json"})
+
+    action = data.get("action")
+    category = data.get("category", "ALL")  # 👈 NEW
+    categories = list(
+    Player.objects
+    .values_list("category", flat=True)
+    .distinct()
+    )
+
+# optional: clean + sort
+    categories = sorted([c for c in categories if c])
     event = AuctionEvent.objects.filter(is_active=True).first()
-    if not event: return JsonResponse({'status': 'error'})
-    
+    if not event:
+        return JsonResponse({"status": "no_active_event"})
+
     with transaction.atomic():
         state = AuctionState.objects.select_for_update().get(auction=event)
 
-        if action == 'SPIN':
-            candidates = event.players.filter(is_sold=False, is_unsold=False)
-            priority_candidates = candidates.filter(priority_score__gt=0).order_by('-priority_score')
+        # =========================================================
+        # 🎯 SPIN (CATEGORY + PRIORITY BASED)
+        # =========================================================
+        if action == "SPIN":
+
             
+            
+            candidates = event.players.filter(is_sold=False, is_unsold=False)
+            # apply category filter
+            if category and category != "ALL":
+                filtered = candidates.filter(category__iexact=category)
+
+                # fallback if empty
+                if filtered.exists():
+                    candidates = filtered
+
+            # priority players first
+            priority_candidates = candidates.filter(priority_score__gt=0).order_by("-priority_score")
+
             if priority_candidates.exists():
                 winner = priority_candidates.first()
-                winner.priority_score = 0 
+
+                # reset priority after selection
+                winner.priority_score = 0
                 winner.save()
+
             elif candidates.exists():
-                winner = random.choice(candidates)
+                winner = random.choice(list(candidates))
             else:
-                return JsonResponse({'status': 'empty'})
+                return JsonResponse({"status": "empty_pool"})
 
             state.current_player = winner
             state.current_bid = winner.base_price
+            state.last_action_time = timezone.now()
             state.save()
 
+            return JsonResponse({
+                "status": "success",
+                "player": winner.name,
+                "is_unsold_round": state.is_unsold_round,
+            })
 
         elif action == 'BID':
             state.current_bid = int(data.get('amount', 0))
@@ -229,7 +275,7 @@ def api_action(request):
             player = state.current_player
             price = state.current_bid
             
-            if player and team.budget >= price:
+            if player :
                 team.budget -= price
                 team.spent += price
                 team.players_count += 1
@@ -253,6 +299,19 @@ def api_action(request):
                 p.save()
                 state.current_player = None
                 state.save()
+        
+        elif action == "RESET_UNSOLD":
+            players = event.players.filter(is_unsold=True)
+
+            count = players.update(
+            is_unsold=False,
+            priority_score=0
+            )
+
+            return JsonResponse({
+                "status": "success",
+                "reset_players": count
+            })
 
     return JsonResponse({'status': 'ok'})
 
@@ -280,6 +339,7 @@ def export_csv(request):
         Position=F('position'),
         Category=F('category'),
         Department=F('department'),
+        Year=F('year'),
         Base_Price=F('base_price'),
         Email=F('email')
     ))
@@ -289,6 +349,7 @@ def export_csv(request):
         Player=F('name'),
         Position=F('position'),
         Category=F('category'),
+        Year=F('year'),
         Department=F('department'),
         Base_Price=F('base_price'),
         Email=F('email')
@@ -298,7 +359,11 @@ def export_csv(request):
     remaining_data = list(event.players.filter(is_sold=False, is_unsold=False).order_by('name').values(
         Player=F('name'),
         Position=F('position'),
-        Base_Price=F('base_price')
+        Base_Price=F('base_price'),
+        Category=F('category'),
+        Year=F('year'),
+        Department=F('department'),
+
     ))
 
     # --- BUILD DATAFRAMES ---
@@ -328,7 +393,7 @@ def export_csv(request):
     if not final_df.empty:
         # Define the exact column order you want in the CSV
         columns_order = [
-            'Team', 'Player', 'Price', 'Status', 
+            'Team', 'Player', 'Price', 'Status', 'year',
             'Position', 'Category', 'Department', 'Base_Price', 'Email'
         ]
         
@@ -388,3 +453,33 @@ def assign_team_roles(request):
         team.save()
         return JsonResponse({'success': True})
     return JsonResponse({'success': False}, status=400)
+# views.py
+
+
+def proxy_image(request):
+    url = request.GET.get("url")
+    if not url:
+        return HttpResponseBadRequest("Missing 'url' parameter")
+
+    # Handle Google Drive links
+    if "drive.google.com" in url:
+        # Extract file ID from /file/d/<ID>/view
+        import re
+        match = re.search(r"/d/([^/]+)/", url)
+        if match:
+            file_id = match.group(1)
+            url = f"https://drive.google.com/uc?export=view&id={file_id}"
+        else:
+            return HttpResponseBadRequest("Invalid Google Drive link")
+
+    try:
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        return HttpResponseBadRequest(f"Error fetching image: {e}")
+
+    # Detect content type from response headers
+    content_type = resp.headers.get("Content-Type", "image/jpeg")
+    response = HttpResponse(resp.content, content_type=content_type)
+    response["Access-Control-Allow-Origin"] = "*"   # allow all origins
+    return response

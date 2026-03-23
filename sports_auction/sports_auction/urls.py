@@ -16,4 +16,6 @@ urlpatterns = [
     path('export/', views.export_csv, name='export'),
     path('api/toggle-priority/', views.toggle_priority, name='toggle_priority'),
     path('api/assign-roles/', views.assign_team_roles, name='assign_roles'),
+
+     path("proxy-image/", views.proxy_image, name="proxy_image"),
 ]

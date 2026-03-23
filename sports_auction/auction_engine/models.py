@@ -24,12 +24,12 @@ class Team(models.Model):
 
 class Player(models.Model):
     auction = models.ForeignKey(AuctionEvent, on_delete=models.CASCADE, related_name="players")
-    email = models.EmailField(null=True, blank=True)
+    email = models.CharField(null=True, blank=True)
     name = models.CharField(max_length=100)
     department = models.CharField(max_length=100, blank=True, default="")
     category = models.CharField(max_length=50, default="General")
     position = models.CharField(max_length=50, default="Player")
-    year = models.CharField(max_length=10, blank=True, null=True)
+    year = models.CharField(max_length=20, blank=True, null=True)
     base_price = models.IntegerField(default=200)
     image_url = models.TextField(blank=True, null=True)
     is_sold = models.BooleanField(default=False)
@@ -43,6 +43,7 @@ class AuctionState(models.Model):
     auction = models.ForeignKey(AuctionEvent, on_delete=models.CASCADE)
     current_player = models.ForeignKey(Player, on_delete=models.SET_NULL, null=True, blank=True)
     current_bid = models.IntegerField(default=0)
+    is_unsold_round = models.BooleanField(default=False)
 
 class TransactionLog(models.Model):
     auction = models.ForeignKey(AuctionEvent, on_delete=models.CASCADE)
